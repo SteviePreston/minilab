@@ -5,12 +5,10 @@ all:
         master_nodes:
           hosts:
             k3s-m01:
-              ansible_host: "{{ lookup('env', 'M01') }}"
+              ansible_host: 192.168.50.175
         worker_nodes:
           hosts:
             k3s-w01:
-              ansible_host: "{{ lookup('env', 'W01') }}"
-
+              ansible_host: 192.168.50.125
             k3s-w02:
-              ansible_host: "{{ lookup('env', 'W02') }}"
-
+              ansible_host: 192.168.50.162
