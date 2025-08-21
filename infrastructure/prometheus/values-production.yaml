@@ -1,0 +1,53 @@
+prometheus:
+  prometheusSpec:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    retention: 7d  # Shorter retention without persistent storage
+    # TODO: Add LongHorn for persistent storage
+    storageSpec: {}
+    nodeSelector:
+      kubernetes.io/os: linux
+
+# Disable AlertManager
+# TODO: Add and configure AlertManager
+alertmanager:
+  enabled: false
+
+# Disable Grafana (Deployed seperately)
+grafana:
+  enabled: false
+
+# Node Exporter
+nodeExporter:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Kube State Metrics
+kubeStateMetrics:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Prometheus Operator
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

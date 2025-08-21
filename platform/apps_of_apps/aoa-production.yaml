@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: apps-of-apps
+  name: aoa-production
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/steviepreston/minilab
+    repoURL: https://github.com/steviepreston/minilab.git
     targetRevision: HEAD
     path: platform/environments/production
   destination:
