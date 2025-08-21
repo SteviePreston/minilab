@@ -1,0 +1,25 @@
+---
+- name: Basic K3s Cluster Shutdown
+  hosts: k3s_cluster
+  become: yes
+  tasks:
+    - name: Stop k3s agent on workers
+      systemd:
+        name: k3s-agent
+        state: stopped
+      when: inventory_hostname in groups['worker_nodes']
+
+    - name: Stop k3s server on master
+      systemd:
+        name: k3s
+        state: stopped
+      when: inventory_hostname in groups['master_nodes']
+
+    - name: Show shutdown message
+      debug:
+        msg: "Shutting down node {{ inventory_hostname }}"
+
+    - name: Shutdown all nodes
+      shell: shutdown -h now
+      async: 1
+      poll: 0

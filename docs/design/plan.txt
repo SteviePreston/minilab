@@ -1,0 +1,107 @@
+
+.
+├── applications
+├── bootstrap
+│   ├── ansible
+│   │   ├── ansible.cfg
+│   │   ├── inventories
+│   │   │   └── hosts.yaml
+│   │   └── playbooks
+│   │       ├── cluster_platform.yaml
+│   │       ├── cluster_setup.yaml
+│   │       ├── cluster_shutdown.yaml
+│   │       ├── host_ping.yaml
+│   │       ├── node_setup.yaml
+│   │       ├── node_system_info.yaml
+│   │       ├── node_update.yaml
+│   │       └── templates
+│   │           ├── cluster
+│   │           │   ├── k3s-agent.env.j2
+│   │           │   ├── k3s-agent.service.j2
+│   │           │   ├── k3s-server.env.j2
+│   │           │   └── k3s-server.service.j2
+│   │           └── node
+│   │               ├── init.lua.j2
+│   │               └── netplan-static-ip.j2
+│   └── manifests
+│       ├── argocd
+│       │   └── config.yaml
+│       ├── metallb
+│       │   └── config.yaml
+│       ├── rbac
+│       │   └── config.yaml
+│       └── traefik
+│           └── config.yaml
+├── docs
+│   ├── design
+│   │   └── arch.png
+│   ├── drps
+│   │   └── disaster_recovery_plan.md
+│   ├── imgs
+│   │   ├── readme
+│   │   │   ├── rack01.jpeg
+│   │   │   ├── rack02.jpg
+│   │   │   └── rack03.jpg
+│   │   └── tutorials
+│   │       └── img.png
+│   ├── rcas
+│   │   └── rca_template.md
+│   ├── runbooks
+│   │   └── runbook_template.md
+│   └── tutorials
+│       ├── 00_Setting_Up_Hardware.md
+│       └── 01_Setting_Up_Bootstrap.md
+├── infrastructure
+│   ├── alertmanager
+│   │   └── values-production.yaml
+│   ├── argocd
+│   │   └── values-production.yaml
+│   ├── cert-manager
+│   │   └── values-production.yaml
+│   ├── envoy
+│   │   └── values-production.yaml
+│   ├── grafana
+│   │   └── values-production.yaml
+│   ├── harbor
+│   │   └── values-production.yaml
+│   ├── ingress-nginx
+│   │   └── values-production.yaml
+│   ├── istio
+│   │   └── values-production.yaml
+│   ├── jaeger
+│   │   └── values-production.yaml
+│   ├── loki
+│   │   └── values-production.yaml
+│   ├── longhorn
+│   │   └── values-production.yaml
+│   ├── metallb
+│   │   └── values-production.yaml
+│   ├── prometheus
+│   │   └── values-production.yaml
+│   ├── sops
+│   │   └── values-production.yaml
+│   └── traefik
+│       └── values-production.yaml
+├── operations
+│   └── autoremediations
+│       └── clean_stale_logs.yaml
+├── platform
+│   ├── applications
+│   │   └── portfolio.yaml
+│   ├── apps-of-apps.yaml
+│   └── infrastructure
+│       ├── alertmanager.yaml
+│       ├── cert-manager.yaml
+│       ├── envoy.yaml
+│       ├── grafana.yaml
+│       ├── harbor.yaml
+│       ├── ingress-nginx.yaml
+│       ├── istio.yaml
+│       ├── jaeger.yaml
+│       ├── loki.yaml
+│       ├── longhorn.yaml
+│       ├── prometheus.yaml
+│       └── sops.yaml
+├── README.md
+└── TODO.md
+

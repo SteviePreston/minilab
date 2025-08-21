@@ -1,0 +1,199 @@
+---
+- name: Setting up k3s nodes
+  hosts: k3s_cluster
+  become: yes
+  tasks:
+    - name: Starting node preparation
+      debug:
+        msg: "Preparing {{ inventory_hostname }} for k3s installation"
+
+    - name: Configure static IP with netplan
+      template:
+        src: templates/node/netplan-static-ip.j2
+        dest: /etc/netplan/01-netcfg.yaml
+        backup: yes
+        mode: '0600'
+      notify: Apply netplan
+
+    - name: Disable cloud-init network config
+      copy:
+        content: "network: {config: disabled}"
+        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all apt packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+
+    - name: Install development tools
+      apt:
+        name:
+          - git
+          - curl
+          - wget
+          - gnupg
+          - software-properties-common
+          - apt-transport-https
+          - lsb-release
+          - ca-certificates
+        state: present
+
+    - name: Install neovim
+      apt:
+        name: neovim
+        state: present
+
+    - name: Create neovim config directory
+      file:
+        path: /home/admin/.config/nvim
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0755'
+
+    - name: Create neovim config
+      template:
+        src: templates/node/init.lua.j2
+        dest: /home/admin/.config/nvim/init.lua
+        owner: admin
+        group: admin
+        mode: '0644'
+
+    - name: Install docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Add admin to docker group
+      user:
+        name: admin
+        groups: docker
+        append: yes
+
+    - name: Get latest kubectl version
+      uri:
+        url: https://dl.k8s.io/release/stable.txt
+        return_content: yes
+      register: kubectl_version
+
+    - name: Install kubectl 
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version.content | trim }}/bin/linux/arm64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Get latest helm version from GitHub API
+      uri:
+        url: https://api.github.com/repos/helm/helm/releases/latest
+        return_content: yes
+      register: helm_release
+
+    - name: Extract helm version tag
+      set_fact:
+        helm_version: "{{ (helm_release.content | from_json).tag_name }}"
+
+    - name: Install latest helm
+      unarchive:
+        src: "https://get.helm.sh/helm-{{ helm_version }}-linux-arm64.tar.gz"
+        dest: /tmp
+        remote_src: yes
+
+    - name: Move helm binary
+      copy:
+        src: /tmp/linux-arm64/helm
+        dest: /usr/local/bin/helm
+        mode: '0755'
+        remote_src: yes
+
+    - name: Set up aliases
+      lineinfile:
+        path: /home/admin/.bashrc
+        line: "{{ item }}"
+        create: yes
+      become_user: admin
+      loop:
+        - "alias la='ls -Fal'"
+        - "alias ls='ls -F'"
+        - "alias nv='nvim'"
+        - 'export EDITOR=nvim'
+
+    - name: Configure cgroup memory and cpu for RPi
+      lineinfile:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(.*)$'
+        line: '\1 cgroup_memory=1 cgroup_enable=memory'
+        backrefs: yes
+      register: cmdline_changed
+
+    - name: Enable container features for RPi
+      lineinfile:
+        path: /boot/firmware/config.txt
+        line: 'arm_64bit=1'
+        create: yes
+      register: config_changed
+
+    - name: Load kernel modules
+      modprobe:
+        name: "{{ item }}"
+      loop:
+        - br_netfilter
+        - overlay
+
+    - name: Ensure kernel modules load on boot
+      lineinfile:
+        path: /etc/modules-load.d/k3s.conf
+        line: "{{ item }}"
+        create: yes
+      loop:
+        - br_netfilter
+        - overlay
+
+    - name: Set sysctl parameters for k3s
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.d/k3s.conf
+      loop:
+        - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+        - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { key: 'net.ipv4.ip_forward', value: '1' }
+
+    - name: Check if reboot required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Check if kernel config changed
+      set_fact:
+        needs_reboot: "{{ reboot_required.stat.exists or cmdline_changed.changed or config_changed.changed }}"
+
+    - name: Notify if reboot is needed
+      debug:
+        msg: "Reboot required on {{ inventory_hostname }}"
+      when: needs_reboot | bool
+
+    - name: Reboot system if required
+      reboot:
+        msg: "Rebooting due to system updates or kernel config changes"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+      when: needs_reboot | bool
+
+    - name: Node preparation complete
+      debug:
+        msg: "{{ inventory_hostname }} prepared for k3s installation"
+
+  handlers:
+    - name: Apply netplan
+      command: netplan apply
+

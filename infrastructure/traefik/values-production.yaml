@@ -1,0 +1,38 @@
+# traefik/values-production.yaml
+
+deployment:
+  replicas: 2
+
+service:
+  type: LoadBalancer
+  annotations:
+    metallb.universe.tf/address-pool: default-pool
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+ports:
+  web:
+    port: 8000
+    expose: true
+  websecure:
+    port: 8443
+    expose: true
+
+# Dashboard configuration
+api:
+  dashboard: true
+  insecure: true
+
+ingressRoute:
+  dashboard:
+    enabled: true
+    matchRule: Host(`traefik.local`)
+    entryPoints:
+    - web
+

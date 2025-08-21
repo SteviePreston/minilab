@@ -1,0 +1,255 @@
+---
+- name: Bootstrap K3s Platform Components (MetalLB, ArgoCD, Traefik)
+  hosts: master_nodes
+  become: yes
+  vars:
+    metallb_version: v0.13.12
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    manifests_path: "{{ playbook_dir }}/../../manifests" 
+    local_timeout: 300
+    cluster_domain: local
+    metallb_ip_range: "{{ lookup('env', 'METALLB_IP_RANGE') }}"
+    bootstrap_timeout: 300
+  
+  pre_tasks:
+
+    - name: Verify K3s is running
+      shell: |
+        systemctl is-active k3s
+      register: k3s_status
+      failed_when: k3s_status.stdout != "active"
+
+    - name: Verify kubectl is working
+      shell: |
+        kubectl get nodes --no-headers
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: kubectl_test
+      failed_when: kubectl_test.rc != 0
+
+    - name: Display cluster status
+      debug:
+        msg: |
+          K3s Status: {{ k3s_status.stdout }}
+          Cluster Nodes:
+          {{ kubectl_test.stdout }}
+
+  tasks:
+    # ==================== Copy Manifests to Remote ====================
+    - name: Create temporary directory for manifests
+      file:
+        path: /tmp/k3s-manifests
+        state: directory
+        mode: '0755'
+
+    - name: Copy manifest files to remote host
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: '0644'
+      loop:
+        - { src: "{{ manifests_path }}/metallb/config.yaml", dest: "/tmp/k3s-manifests/metallb-config.yaml" }
+        - { src: "{{ manifests_path }}/argocd/config.yaml", dest: "/tmp/k3s-manifests/argocd-config.yaml" }
+        - { src: "{{ manifests_path }}/traefik/config.yaml", dest: "/tmp/k3s-manifests/traefik-config.yaml" }
+
+    # ==================== MetalLB Installation ====================
+    - name: Install MetalLB controller
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_install
+      changed_when: "'configured' in metallb_install.stdout or 'created' in metallb_install.stdout"
+      retries: 3
+      delay: 10
+
+    - name: Wait for MetalLB namespace to be created
+      shell: |
+        kubectl get namespace metallb-system --no-headers
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_ns
+      until: metallb_ns.rc == 0
+      retries: 12
+      delay: 5
+
+    - name: Wait for MetalLB controller pods to be ready
+      shell: |
+        kubectl wait --namespace metallb-system \
+          --for=condition=ready pod \
+          --selector=app=metallb \
+          --timeout={{ local_timeout }}s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_ready
+      retries: 3
+      delay: 10
+
+    - name: Apply MetalLB IP pool configuration
+      shell: |
+        kubectl apply -f /tmp/k3s-manifests/metallb-config.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_config
+      changed_when: "'configured' in metallb_config.stdout or 'created' in metallb_config.stdout"
+
+    - name: Verify MetalLB IP pool is created
+      shell: |
+        kubectl get ipaddresspool -n metallb-system --no-headers
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_pools
+      until: metallb_pools.stdout | length > 0
+      retries: 10
+      delay: 5
+
+    # ==================== ArgoCD Installation ====================
+    - name: Create ArgoCD namespace
+      shell: |
+        kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      changed_when: false
+
+    - name: Install ArgoCD
+      shell: |
+        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_install
+      changed_when: "'configured' in argocd_install.stdout or 'created' in argocd_install.stdout"
+      retries: 3
+      delay: 10
+
+    - name: Wait for ArgoCD server deployment to be available
+      shell: |
+        kubectl wait --namespace argocd \
+          --for=condition=available deployment/argocd-server \
+          --timeout={{ local_timeout }}s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_deployment
+      retries: 3
+      delay: 15
+
+    - name: Wait for ArgoCD server pods to be ready
+      shell: |
+        kubectl wait --namespace argocd \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/name=argocd-server \
+          --timeout={{ local_timeout }}s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_ready
+      retries: 3
+      delay: 15
+
+    - name: Apply ArgoCD LoadBalancer service
+      shell: |
+        kubectl apply -f /tmp/k3s-manifests/argocd-config.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_lb
+      changed_when: "'configured' in argocd_lb.stdout or 'created' in argocd_lb.stdout"
+
+    # ==================== Traefik Configuration ====================
+    - name: Configure Traefik LoadBalancer service
+      shell: |
+        kubectl apply -f /tmp/k3s-manifests/traefik-config.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: traefik_config
+      changed_when: "'configured' in traefik_config.stdout or 'created' in traefik_config.stdout"
+
+    - name: Wait for LoadBalancer IP assignments
+      shell: |
+        timeout {{ bootstrap_timeout }} bash -c '
+          while true; do
+            unassigned=$(kubectl get svc -A --field-selector spec.type=LoadBalancer -o jsonpath="{.items[?(@.status.loadBalancer.ingress[0].ip==null)].metadata.name}" | wc -w)
+            if [ "$unassigned" -eq 0 ]; then
+              echo "All LoadBalancer services have IPs assigned"
+              break
+            fi
+            echo "Waiting for $unassigned LoadBalancer services to get IPs..."
+            sleep 10
+          done'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: lb_wait
+      failed_when: lb_wait.rc != 0
+
+    # ==================== Verification & Status ====================
+    - name: Verify MetalLB pods are running
+      shell: |
+        kubectl get pods -n metallb-system --no-headers | \
+        awk '{if($3!="Running" && $3!="Completed") {print "Pod " $1 " is " $3; exit 1}}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_health
+
+    - name: Verify ArgoCD pods are running
+      shell: |
+        kubectl get pods -n argocd --no-headers | \
+        awk '{if($3!="Running" && $3!="Completed") {print "Pod " $1 " is " $3; exit 1}}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_health
+
+    - name: Get MetalLB IP pool details
+      shell: |
+        kubectl get ipaddresspool -n metallb-system -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metallb_pools_detail
+
+    - name: Get all LoadBalancer services with IPs
+      shell: |
+        kubectl get svc -A --field-selector spec.type=LoadBalancer -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: lb_services
+
+    - name: Get ArgoCD initial admin password
+      shell: |
+        kubectl -n argocd get secret argocd-initial-admin-secret \
+          -o jsonpath="{.data.password}" 2>/dev/null | base64 -d || echo "Password secret not found"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_password
+      no_log: true
+
+    - name: Display bootstrap completion status
+      debug:
+        msg: |
+          
+          ================================================================================
+          🚀 K3s Platform Bootstrap Complete!
+          ================================================================================
+          
+          📊 MetalLB IP Pools:
+          {{ metallb_pools_detail.stdout }}
+          
+          🌐 LoadBalancer Services:
+          {{ lb_services.stdout }}
+          
+          🔐 ArgoCD Access:
+          Username: admin
+          Password: {{ argocd_password.stdout if argocd_password.stdout != "Password secret not found" else "Password has already been updated, and inital secret has been deleted." }}
+          
+          ================================================================================
+
+  handlers:
+    - name: restart k3s
+      systemd:
+        name: k3s
+        state: restarted
+        daemon_reload: yes
+
+  post_tasks:
+    - name: Save bootstrap completion timestamp
+      shell: |
+        echo "Bootstrap completed: $(date)" > /tmp/k3s-bootstrap-complete.log
+        kubectl annotate node $(hostname) bootstrap.k3s/completed="$(date -Iseconds)" --overwrite
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+

@@ -1,0 +1,90 @@
+---
+- name: k3s cluster system information
+  hosts: all
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: Get system uptime
+      command: uptime -p
+      register: system_uptime
+      changed_when: false
+
+    - name: Get disk usage
+      command: df -h /
+      register: disk_usage
+      changed_when: false
+
+    - name: Get memory usage
+      command: free -h
+      register: memory_usage
+      changed_when: false
+
+    - name: Get temperature (Pi specific)
+      command: vcgencmd measure_temp
+      register: cpu_temp
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Get Docker version
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Get kubectl version
+      command: kubectl version --client 
+      register: kubectl_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Get Helm version
+      command: helm version --short
+      register: helm_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Get k3s version (if installed)
+      command: k3s --version
+      register: k3s_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Get kernel version
+      command: uname -r
+      register: kernel_version
+      changed_when: false
+
+    - name: Display system information
+      debug:
+        msg: |
+          ==========================================
+          📦 HOST: {{ inventory_hostname }}
+          ==========================================
+
+          🖥️  OS:           {{ ansible_distribution }} {{ ansible_distribution_version }}
+          🧠 Architecture:  {{ ansible_architecture }}
+          🧬 Kernel:        {{ kernel_version.stdout }}
+          ⏱️  Uptime:       {{ system_uptime.stdout }}
+
+          🔧 HARDWARE:
+          🧮 CPU:           {{ ansible_processor[2] if ansible_processor is defined else 'Unknown' }}
+          💾 Memory:        {{ ansible_memtotal_mb }}MB
+          🌡️ Temperature:   {{ cpu_temp.stdout if cpu_temp.rc == 0 else 'Not available' }}
+
+          💽 STORAGE:
+          {{ disk_usage.stdout_lines | join('\n') }}
+
+          📊 MEMORY USAGE:
+          {{ memory_usage.stdout_lines | join('\n') }}
+
+          📦 INSTALLED VERSIONS:
+          🐳 Docker:        {{ docker_version.stdout if docker_version.rc == 0 else 'Not installed' }}
+          ⚙️ kubectl:       {{ kubectl_version.stdout if kubectl_version.rc == 0 else 'Not installed' }}
+          ⛵ Helm:          {{ helm_version.stdout if helm_version.rc == 0 else 'Not installed' }}
+          🐥 k3s:           {{ k3s_version.stdout.split()[2] if k3s_version.rc == 0 else 'Not installed' }}
+
+          🌐 NETWORK:
+          🧭 IP Address:    {{ ansible_default_ipv4.address }}
+          🚪 Gateway:       {{ ansible_default_ipv4.gateway }}
+          ==========================================
+

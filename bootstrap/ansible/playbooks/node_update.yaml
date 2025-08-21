@@ -1,0 +1,18 @@
+
+---
+- name: Setting up k3s nodes
+  hosts: k3s_cluster
+  become: yes
+  tasks:
+
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all apt packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+

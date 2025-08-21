@@ -1,0 +1,46 @@
+# argocd/values-production.yaml
+
+global:
+  domain: argocd.local
+
+server:
+  service:
+    type: ClusterIP  # Use Ingress instead of LoadBalancer
+  
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+    - argocd.local
+    tls:
+    - secretName: argocd-server-tls
+      hosts:
+      - argocd.local
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  config:
+    url: https://argocd.local
+    application.instanceLabelKey: argocd.argoproj.io/instance
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+applicationSet:
+  enabled: true
+
+notifications:
+  enabled: false  # Enable later with proper configuration
+
