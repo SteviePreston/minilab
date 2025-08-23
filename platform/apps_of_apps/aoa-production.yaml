@@ -8,9 +8,9 @@ spec:
   - git:
       repoURL: https://github.com/steviepreston/minilab.git
       revision: HEAD
-      directories:
-      - path: platform/environments/production/infrastructure/*
-      - path: platform/environments/production/applications/*
+      files:
+      - path: "platform/environments/production/infrastructure/*.yaml"
+      - path: "platform/environments/production/applications/*.yaml"
   template:
     metadata:
       name: '{{path.basename}}-production'
@@ -20,7 +20,7 @@ spec:
       source:
         repoURL: https://github.com/steviepreston/minilab.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.dirname}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: argocd
@@ -30,3 +30,4 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
+

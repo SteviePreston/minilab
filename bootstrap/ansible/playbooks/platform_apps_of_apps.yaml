@@ -1,0 +1,106 @@
+---
+- name: Bootstrap Observability Platform via ArgoCD
+  hosts: master_nodes
+  become: yes
+  vars:
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    observability_namespace: monitoring
+    local_apps_path: "{{ playbook_dir }}/../../../platform/apps_of_apps"
+    remote_apps_path: "/tmp/argocd-apps"
+    
+  pre_tasks:
+    - name: Verify ArgoCD is running
+      shell: |
+        kubectl get pods -n argocd --selector=app.kubernetes.io/name=argocd-server --field-selector=status.phase=Running --no-headers
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_status
+      failed_when: argocd_status.stdout_lines | length == 0
+
+    - name: Create temporary directory for ArgoCD apps
+      file:
+        path: "{{ remote_apps_path }}"
+        state: directory
+        mode: '0755'
+
+  tasks:
+    # ==================== Copy ArgoCD Application Files ====================
+    - name: Copy App of Apps files to remote
+      copy:
+        src: "{{ local_apps_path }}/"
+        dest: "{{ remote_apps_path }}/"
+        mode: '0644'
+
+    # ==================== Create Prerequisites ====================
+    - name: Create monitoring namespace
+      shell: |
+        kubectl create namespace {{ observability_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Generate and create Grafana admin secret
+      shell: |
+        kubectl create secret generic grafana-admin-secret \
+          --from-literal=admin-user=admin \
+          --from-literal=admin-password=$(openssl rand -base64 20) \
+          -n {{ observability_namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    # ==================== Deploy ArgoCD Applications ====================
+    - name: Deploy App of Apps Pattern
+      shell: |
+        kubectl apply -f {{ remote_apps_path }}/aoa-production.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+
+    - name: Wait for ArgoCD to sync applications
+      shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n {{ observability_namespace }} --timeout=600s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      retries: 3
+      delay: 60
+
+    # ==================== Verification ====================
+    - name: Check ArgoCD applications status
+      shell: |
+        kubectl get applications -n argocd
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: argocd_apps
+
+    - name: Get Grafana credentials
+      shell: |
+        echo "Username: $(kubectl get secret grafana-admin-secret -n {{ observability_namespace }} -o jsonpath='{.data.admin-user}' | base64 --decode)"
+        echo "Password: $(kubectl get secret grafana-admin-secret -n {{ observability_namespace }} -o jsonpath='{.data.admin-password}' | base64 --decode)"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: grafana_credentials
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          ================================================================================
+          🚀 GitOps Bootstrap Complete!
+          ================================================================================
+          
+          ArgoCD Applications:
+          {{ argocd_apps.stdout }}
+          
+          🔐 Grafana Credentials:
+          {{ grafana_credentials.stdout }}
+          
+          🎯 Next Steps:
+          - Check ArgoCD UI for application sync status
+          - All future updates via Git commits to your repository
+          
+          ================================================================================
+
+  post_tasks:
+    - name: Cleanup temporary apps directory
+      file:
+        path: "{{ remote_apps_path }}"
+        state: absent
