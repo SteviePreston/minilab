@@ -9,11 +9,11 @@ spec:
       repoURL: https://github.com/steviepreston/minilab.git
       revision: HEAD
       directories:
-      - path: "platform/environments/production/infrastructure/*.yaml"
-      - path: "platform/environments/production/applications/*.yaml"
+      - path: "platform/environments/production/infrastructure"
+      - path: "platform/environments/production/applications"
   template:
     metadata:
-      name: '{{path.basenameNormalized}}-production'
+      name: '{{path.basename}}-production'
       namespace: argocd
     spec:
       project: default
