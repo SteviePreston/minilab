@@ -1,23 +1,32 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Application
+kind: ApplicationSet
 metadata:
-  name: aoa-production
+  name: minilab-production
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/steviepreston/minilab.git
-    targetRevision: HEAD
-    path: platform/environments/production
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
+  generators:
+  - git:
+      repoURL: https://github.com/steviepreston/minilab.git
+      revision: HEAD
+      directories:
+      - path: platform/environments/production/infrastructure/*
+      - path: platform/environments/production/applications/*
+  template:
+    metadata:
+      name: '{{path.basename}}-production'
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/steviepreston/minilab.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

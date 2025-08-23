@@ -274,3 +274,4 @@
       file:
         path: /tmp/observability-values
         state: absent
+
