@@ -51,3 +51,11 @@ prometheusOperator:
     limits:
       cpu: 500m
       memory: 512Mi
+
+prometheus-node-exporter:
+  extraArgs:
+    - --collector.thermal_zone
+    - --collector.hwmon
+  hostRootFsMount:
+    enabled: true
+    mountPropagation: HostToContainer
