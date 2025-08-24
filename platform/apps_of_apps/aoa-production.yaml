@@ -9,16 +9,12 @@ spec:
       repoURL: https://github.com/steviepreston/minilab.git
       revision: HEAD
       directories:
-      - path: "platform/environments/production/infrastructure/*"
-      - path: "platform/environments/production/applications/*"
+      - path: "platform/environments/production/infrastructure"
+      - path: "platform/environments/production/applications"
   template:
     metadata:
       name: '{{path.basename}}-production'
       namespace: argocd
-      labels:
-        app.kubernetes.io/instance: minilab-production
-        category: '{{path[2]}}'
-        subcategory: '{{path[3]}}'
     spec:
       project: default
       source:
