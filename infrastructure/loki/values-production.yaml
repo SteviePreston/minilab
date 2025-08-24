@@ -50,3 +50,7 @@ monitoring:
 # Gateway disabled
 gateway:
   enabled: false
+
+# Disable Chunk Cache (Allocated 9.8gb by default. yikes)
+chunksCache:
+  enabled: false
