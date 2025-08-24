@@ -8,7 +8,7 @@ spec:
   sources:
     - repoURL: https://charts.longhorn.io
       chart: longhorn
-      targetRevision: 1.6.0
+      targetRevision: 1.6.2
       helm:
         valueFiles:
           - $values/infrastructure/longhorn/values-production.yaml
@@ -17,7 +17,7 @@ spec:
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: longhorn-system
+    namespace: storage
   syncPolicy:
     automated:
       prune: true
