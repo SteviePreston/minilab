@@ -1,0 +1,42 @@
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# No persistence for now (data will be lost on restart)
+# TODO: Install LongHorn
+persistence:
+  enabled: false
+
+# Security
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+
+# Service configuration
+service:
+  type: ClusterIP
+
+# Configuration
+# TODO: Set up discord/email/sms
+config:
+  global:
+    smtp_smarthost: 'localhost:587'
+    smtp_from: 'alertmanager@cluster.local'
+  
+  route:
+    group_by: ['alertname']
+    group_wait: 10s
+    group_interval: 10s
+    repeat_interval: 1h
+    receiver: 'web.hook'
+  
+  receivers:
+    - name: 'web.hook'
+      webhook_configs:
+        - url: 'http://127.0.0.1:5001/'
+
