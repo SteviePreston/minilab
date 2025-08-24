@@ -12,6 +12,7 @@ spec:
       helm:
         valueFiles:
           - $values/infrastructure/longhorn/values-production.yaml
+        skipHooks: true
     - repoURL: https://github.com/steviepreston/minilab.git
       targetRevision: HEAD
       ref: values
