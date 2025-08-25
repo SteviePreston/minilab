@@ -1,0 +1,21 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger-production
+  namespace: observability
+spec:
+  strategy: allInOne
+  allInOne:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 800m
+        memory: 512Mi
+  storage:
+    type: memory
+    options:
+      memory:
+        max-traces: 50000
+
