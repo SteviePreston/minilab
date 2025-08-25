@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jaeger-operator-production
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://jaegertracing.github.io/helm-charts
+      chart: jaeger-operator
+      targetRevision: 2.57.0
+      helm:
+        valueFiles:
+          - $values/infrastructure/jaeger/values-production.yaml
+    - repoURL: https://github.com/steviepreston/minilab.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger-production
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after operator
+spec:
+  strategy: allInOne
+  allInOne:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 800m
+        memory: 512Mi
+  storage:
+    type: memory
