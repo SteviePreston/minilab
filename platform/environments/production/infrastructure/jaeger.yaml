@@ -12,11 +12,13 @@ spec:
     helm:
       valueFiles:
         - $values/infrastructure/jaeger/values-production.yaml
+
   - repoURL: https://github.com/steviepreston/minilab.git
     targetRevision: HEAD
     path: bootstrap/manifests/jaeger
     directory:
       recurse: true
+
   - repoURL: https://github.com/steviepreston/minilab.git
     targetRevision: HEAD
     ref: values
