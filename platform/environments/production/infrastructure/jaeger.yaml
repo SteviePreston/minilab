@@ -1,28 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: jaeger-production
+  name: jaeger-instance
   namespace: argocd
 spec:
   project: default
-  sources:
-  - repoURL: https://jaegertracing.github.io/helm-charts
-    chart: jaeger-operator
-    targetRevision: 2.57.0
-    helm:
-      valueFiles:
-        - $values/infrastructure/jaeger/values-production.yaml
-
-  - repoURL: https://github.com/steviepreston/minilab.git
+  source:
+    repoURL: https://github.com/steviepreston/minilab.git
     targetRevision: HEAD
     path: bootstrap/manifests/jaeger
-    directory:
-      recurse: true
-
-  - repoURL: https://github.com/steviepreston/minilab.git
-    targetRevision: HEAD
-    ref: values
-
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
@@ -30,6 +16,3 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
