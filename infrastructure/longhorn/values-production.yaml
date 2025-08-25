@@ -1,23 +1,39 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: longhorn
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://charts.longhorn.io
-    chart: longhorn
-    targetRevision: v1.9.1
-    helm:
-      valueFiles:
-        - $values/infrastructure/longhorn/values-production.yaml
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: storage
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 1  # Reduced for RPi setup
+  defaultDataLocality: disabled  # Better for small clusters
+
+# Default settings optimized for RPi
+defaultSettings:
+  createDefaultDiskLabeledNodes: true
+  defaultDataPath: "/var/lib/longhorn/"
+
+# Resources optimized for RPi
+longhornManager:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+longhornDriver:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+longhornUI:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+
