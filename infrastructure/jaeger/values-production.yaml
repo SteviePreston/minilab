@@ -1,4 +1,3 @@
-# Jaeger Operator values
 resources:
   requests:
     cpu: 100m
@@ -20,20 +19,3 @@ serviceAccount:
 
 webhook:
   enabled: true
-
-# Jaeger Instance configuration (used by the CRD, not the Helm chart)
-instance:
-  strategy: allInOne
-  allInOne:
-    resources:
-      requests:
-        cpu: 200m
-        memory: 256Mi
-      limits:
-        cpu: 800m
-        memory: 512Mi
-  storage:
-    type: memory
-    options:
-      memory:
-        max-traces: 50000

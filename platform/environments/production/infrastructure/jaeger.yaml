@@ -1,3 +1,4 @@
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -31,7 +32,7 @@ metadata:
   name: jaeger-production
   namespace: observability
   annotations:
-    argocd.argoproj.io/sync-wave: "1"  # Deploy after operator
+    argocd.argoproj.io/sync-wave: "1" # Deploy after operator
 spec:
   strategy: allInOne
   allInOne:
@@ -44,3 +45,7 @@ spec:
         memory: 512Mi
   storage:
     type: memory
+    options:
+      memory:
+        max-traces: 50000
+
