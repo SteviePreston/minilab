@@ -4,6 +4,8 @@ kind: Application
 metadata:
   name: jaeger-operator-production
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Deploy operator first
 spec:
   project: default
   sources:
@@ -25,27 +27,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
----
-apiVersion: jaegertracing.io/v1
-kind: Jaeger
-metadata:
-  name: jaeger-production
-  namespace: observability
-  annotations:
-    argocd.argoproj.io/sync-wave: "1" # Deploy after operator
-spec:
-  strategy: allInOne
-  allInOne:
-    resources:
-      requests:
-        cpu: 200m
-        memory: 256Mi
-      limits:
-        cpu: 800m
-        memory: 512Mi
-  storage:
-    type: memory
-    options:
-      memory:
-        max-traces: 50000
 
