@@ -1,11 +1,12 @@
+harbor:
+  existingSecret: harbor-admin-password
+  secretKey: harbor-admin-password
+
 expose:
   type: NodePort
   tls:
     enabled: false
 
-harborAdminPassword:
-  existingSecret: harbor-admin-password
-  secretKey: harbor-admin-password
 
 persistence:
   enabled: true
