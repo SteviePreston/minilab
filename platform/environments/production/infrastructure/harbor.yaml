@@ -6,12 +6,15 @@ metadata:
 spec:
   project: default
   sources:
-    repoURL: https://helm.goharbor.io
-    chart: harbor
-    targetRevision: 1.16.0
-    helm:
-      valueFiles:
-        - $values/infrastructure/harbor/values-production.yaml
+    - repoURL: https://helm.goharbor.io
+      chart: harbor
+      targetRevision: 1.16.0
+      helm:
+        valueFiles:
+          - $values/infrastructure/harbor/values-production.yaml
+    - repoURL: https://github.com/steviepreston/minilab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: storage
