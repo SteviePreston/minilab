@@ -8,8 +8,8 @@ defaultSettings:
   createDefaultDiskLabeledNodes: true
   defaultDataPath: "/var/lib/longhorn/"
 
-helmPreUpgradeCheckerJob:
-  enabled: false
+preUpgradeChecker:
+  jobEnabled: false
 
 # Resources optimized for RPi
 longhornManager:
