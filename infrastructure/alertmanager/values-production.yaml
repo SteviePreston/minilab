@@ -6,10 +6,13 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# No persistence for now (data will be lost on restart)
-# TODO: Install LongHorn
+# Longhorn persistence enabled
 persistence:
-  enabled: false
+  enabled: true
+  storageClassName: longhorn
+  size: 5Gi
+  accessModes:
+    - ReadWriteOnce
 
 # Security
 securityContext:
@@ -21,22 +24,21 @@ securityContext:
 service:
   type: ClusterIP
 
-# Configuration
-# TODO: Set up discord/email/sms
+# Simple Discord webhook configuration
 config:
   global:
-    smtp_smarthost: 'localhost:587'
-    smtp_from: 'alertmanager@cluster.local'
+    resolve_timeout: 5m
   
   route:
+    receiver: 'discord'
     group_by: ['alertname']
     group_wait: 10s
-    group_interval: 10s
+    group_interval: 5m
     repeat_interval: 1h
-    receiver: 'web.hook'
   
   receivers:
-    - name: 'web.hook'
+    - name: 'discord'
       webhook_configs:
-        - url: 'http://127.0.0.1:5001/'
+        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
+          send_resolved: true
 
