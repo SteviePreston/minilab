@@ -47,3 +47,4 @@ securityContext:
     drop:
       - ALL
   allowPrivilegeEscalation: false
+

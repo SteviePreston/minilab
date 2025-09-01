@@ -1,5 +1,4 @@
 deploymentMode: SingleBinary
-
 singleBinary:
   replicas: 1
   resources:
@@ -9,6 +8,11 @@ singleBinary:
     limits:
       cpu: 1000m
       memory: 1Gi
+  # Add Longhorn persistence
+  persistence:
+    enabled: true
+    storageClass: longhorn-storageclass
+    size: 20Gi
 
 # DISABLE other components when using SingleBinary
 write:
@@ -18,13 +22,16 @@ read:
 backend:
   replicas: 0
 
-# Loki configuration
+# Loki configuration with Longhorn storage
 loki:
   auth_enabled: false
   commonConfig:
     replication_factor: 1
+    path_prefix: /var/loki  
   storage:
     type: 'filesystem'
+    filesystem:
+      directory: /var/loki/chunks  
   schemaConfig:
     configs:
       - from: 2024-04-01
@@ -34,23 +41,42 @@ loki:
         index:
           prefix: index_
           period: 24h
+  limits_config:
+    retention_period: 336h  # 14 days retention
+    ingestion_rate_mb: 10
+    ingestion_burst_size_mb: 20
 
-# Test configuration
-test:
-  enabled: false
-
-# Monitoring disabled for now
-# FIX: Enable Monitoring
+# Enable monitoring for Prometheus to scrape Loki metrics
 monitoring:
   selfMonitoring:
-    enabled: false
+    enabled: true
     grafanaAgent:
       installOperator: false
-
-# Gateway disabled
-gateway:
-  enabled: false
+  serviceMonitor:
+    enabled: true
+    labels:
+      app.kubernetes.io/part-of: kube-prometheus-stack
+    interval: 15s
+    scrapeTimeout: 10s
 
 # Disable Chunk Cache (Allocated 9.8gb by default. yikes)
 chunksCache:
   enabled: false
+
+resultsCache:
+  enabled: false
+
+gateway:
+  enabled: false
+
+test:
+  enabled: false
+
+# Enable metrics endpoint
+singleBinary:
+  extraArgs:
+    - -config.expand-env=true
+  extraEnv:
+    - name: LOKI_TRACING_ENABLED
+      value: "true"
+
