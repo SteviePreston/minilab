@@ -16,13 +16,9 @@ prometheus:
           resources:
             requests:
               storage: 50Gi
-    nodeSelector:
-      kubernetes.io/os: linux
 
-# Disable AlertManager
-# TODO: Add and configure AlertManager
 alertmanager:
-  enabled: false
+  enabled: true
 
 # Disable Grafana (Deployed seperately)
 grafana:
@@ -65,3 +61,4 @@ prometheus-node-exporter:
   hostRootFsMount:
     enabled: true
     mountPropagation: HostToContainer
+
