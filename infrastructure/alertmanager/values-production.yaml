@@ -9,7 +9,7 @@ resources:
 # Longhorn persistence enabled
 persistence:
   enabled: true
-  storageClassName: longhorn
+  storageClassName: longhorn-storageclass
   size: 5Gi
   accessModes:
     - ReadWriteOnce
