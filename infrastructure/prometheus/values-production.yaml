@@ -19,11 +19,10 @@ prometheus:
     nodeSelector:
       kubernetes.io/os: linux
 
-alertmanager:
-  enabled: true
-
-# Disable Grafana (Deployed seperately)
+# Disable Grafana and AlertManager (Deployed seperately)
 grafana:
+  enabled: false
+alertmanager:
   enabled: false
 
 # Node Exporter
