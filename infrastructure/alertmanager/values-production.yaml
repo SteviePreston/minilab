@@ -43,4 +43,4 @@ config:
           send_resolved: true
 
 extraArgs:
-  --cluster.peer: ""
+  - --cluster.peer: ""
