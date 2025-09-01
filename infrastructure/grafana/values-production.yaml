@@ -6,10 +6,10 @@ resources:
     cpu: 1000m
     memory: 1Gi
 
-# No persistence for now (data will be lost on restart)
-# TODO: Install LongHorn
 persistence:
-  enabled: false
+  enabled: true
+  storageClassName: "longhorn-storageclass"
+  size: 10Gi
 
 # Security
 securityContext:

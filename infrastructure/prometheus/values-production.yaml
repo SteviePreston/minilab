@@ -7,9 +7,15 @@ prometheus:
       limits:
         cpu: 2000m
         memory: 4Gi
-    retention: 7d  # Shorter retention without persistent storage
-    # TODO: Add LongHorn for persistent storage
-    storageSpec: {}
+    retention: 3Od
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn-storageclass
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
     nodeSelector:
       kubernetes.io/os: linux
 
