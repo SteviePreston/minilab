@@ -16,6 +16,8 @@ prometheus:
           resources:
             requests:
               storage: 50Gi
+    nodeSelector:
+      kubernetes.io/os: linux
 
 alertmanager:
   enabled: true
