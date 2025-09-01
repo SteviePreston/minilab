@@ -25,6 +25,12 @@ grafana:
 alertmanager:
   enabled: false
 
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - 'alertmanager-production.monitoring.svc.cluster.local:9093'
+      
 # Node Exporter
 nodeExporter:
   resources:
