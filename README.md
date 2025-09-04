@@ -3,7 +3,7 @@
 ![MiniLab Server](docs/imgs/readme/rack03.jpg "Current state of the MiniLab")
 
 ### Plan
-![Argo](docs/img/software/argo_cd.png "Argo CD")
+![Argo](docs/imgs/software/argo_cd.png "Argo CD")
 
 I decided to use the GitOps approach using the apps of apps pattern, using git as the source of 
 truth. Argo CD allows me to leverage helm charts and values files to deploy infrastructure, using
