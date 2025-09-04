@@ -1,6 +1,5 @@
 deploymentMode: SingleBinary
 
-# SingleBinary configuration
 singleBinary:
   replicas: 1
   resources:
@@ -20,11 +19,11 @@ singleBinary:
     - name: LOKI_TRACING_ENABLED
       value: "true"
 
-# EXPLICITLY disable all microservices components
+# Component disabling
 write:
   replicas: 0
 read:
-  replicas: 0  
+  replicas: 0
 backend:
   replicas: 0
 gateway:
@@ -37,11 +36,7 @@ querier:
   replicas: 0
 queryFrontend:
   replicas: 0
-queryScheduler:
-  replicas: 0
 compactor:
-  replicas: 0
-indexGateway:
   replicas: 0
 ruler:
   replicas: 0
@@ -70,7 +65,7 @@ loki:
     ingestion_rate_mb: 10
     ingestion_burst_size_mb: 20
 
-# Disable caching and Testing
+# Disable caches and Tests
 chunksCache:
   enabled: false
 resultsCache:
@@ -90,5 +85,4 @@ monitoring:
       app.kubernetes.io/part-of: kube-prometheus-stack
     interval: 15s
     scrapeTimeout: 10s
-
 
