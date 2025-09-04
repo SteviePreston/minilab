@@ -76,7 +76,7 @@ test:
 # Monitoring
 monitoring:
   selfMonitoring:
-    enabled: true
+    enabled: false
     grafanaAgent:
       installOperator: false
   serviceMonitor:
