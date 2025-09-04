@@ -1,0 +1,66 @@
+mode: deployment
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+    jaeger:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:14250
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+        thrift_compact:
+          endpoint: 0.0.0.0:6831
+    zipkin:
+      endpoint: 0.0.0.0:9411
+
+  processors:
+    batch:
+      timeout: 1s
+      send_batch_size: 1024
+    
+    memory_limiter:
+      limit_mib: 400
+      spike_limit_mib: 100
+      check_interval: 5s
+
+  exporters:
+    jaeger:
+      endpoint: jaeger-production-collector:14250
+      tls:
+        insecure: true
+    
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+      const_labels:
+        cluster: "minilab"
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp, jaeger, zipkin]
+        processors: [memory_limiter, batch]
+        exporters: [jaeger]
+      
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus]
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    app.kubernetes.io/part-of: kube-prometheus-stack

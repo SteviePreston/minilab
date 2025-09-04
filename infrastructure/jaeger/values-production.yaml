@@ -1,0 +1,46 @@
+provisionDataStore:
+  cassandra: false
+  elasticsearch: false
+
+# All-in-one Jaeger instance  
+allInOne:
+  enabled: true
+  image:
+    tag: "1.50.0"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  persistence:
+    enabled: true
+    storageClassName: longhorn-storageclass
+    size: 10Gi
+
+# Disable other components
+agent:
+  enabled: false
+collector:
+  enabled: false
+query:
+  enabled: false
+ingester:
+  enabled: false
+cassandra:
+  enabled: false
+elasticsearch:
+  enabled: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  zipkinPort: 9411
+  
+# Expose metrics for Prometheus
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    app.kubernetes.io/part-of: kube-prometheus-stack
