@@ -18,6 +18,8 @@ persistence:
 securityContext:
   runAsNonRoot: true
   runAsUser: 65534
+
+podSecurityContext:
   fsGroup: 65534
 
 # Service configuration
