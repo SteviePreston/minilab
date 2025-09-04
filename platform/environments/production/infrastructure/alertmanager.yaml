@@ -26,10 +26,11 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
-      - Replace=true 
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
       jsonPointers:
       - /spec/minReadySeconds
-
+      - /spec/volumeClaimTemplates
+      - /metadata/annotations
+      - /metadata/labels
