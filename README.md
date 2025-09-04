@@ -1,7 +1,5 @@
 ## StevieP's Minilab
 
-![MiniLab Server](docs/imgs/readme/rack03.jpg "Current state of the MiniLab")
-
 ### Plan
 ![Argo](docs/imgs/software/argo_cd.png "Argo CD")
 
