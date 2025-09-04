@@ -1,8 +1,6 @@
-provisionDataStore:
-  cassandra: false
-  elasticsearch: false
+storage:
+  type: badger
 
-# All-in-one Jaeger instance  
 allInOne:
   enabled: true
   image:
@@ -17,10 +15,24 @@ allInOne:
   
   persistence:
     enabled: true
-    storageClassName: longhorn-storageclass
+    storageClass: longhorn-storageclass
     size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+  
+  args:
+    - --badger.ephemeral=false
+    - --badger.directory-key=/badger/key
+    - --badger.directory-value=/badger/data
+    - --badger.consistency=false  
+    - --badger.maintenance-interval=5m
+  
+  extraEnv:
+    - name: COLLECTOR_OTLP_ENABLED
+      value: "true"
+    - name: BADGER_EPHEMERAL
+      value: "false"
 
-# Disable other components
 agent:
   enabled: false
 collector:
@@ -29,18 +41,17 @@ query:
   enabled: false
 ingester:
   enabled: false
+
 cassandra:
   enabled: false
 elasticsearch:
   enabled: false
 
-# Service configuration
 service:
   type: ClusterIP
-  zipkinPort: 9411
   
-# Expose metrics for Prometheus
 serviceMonitor:
   enabled: true
   additionalLabels:
     app.kubernetes.io/part-of: kube-prometheus-stack
+
