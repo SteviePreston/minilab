@@ -24,3 +24,20 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+      - /spec/template/metadata/annotations
+      - /metadata/annotations
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+      - /spec/volumeClaimTemplates
+      - /spec/template/metadata/annotations
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+      - /data
