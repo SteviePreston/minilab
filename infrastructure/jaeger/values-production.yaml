@@ -1,4 +1,6 @@
-  
+storage:
+  type: badger
+
 allInOne:
   enabled: true
   image:
@@ -54,7 +56,6 @@ cassandra:
   enabled: false
 elasticsearch:
   enabled: false
-
 service:
   type: ClusterIP
   
@@ -62,3 +63,4 @@ serviceMonitor:
   enabled: true
   additionalLabels:
     app.kubernetes.io/part-of: kube-prometheus-stack
+
