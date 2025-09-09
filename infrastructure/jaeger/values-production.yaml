@@ -23,8 +23,6 @@ allInOne:
   
   args:
     - --badger.ephemeral=false
-    - --badger.directory-key=/badger/key
-    - --badger.directory-value=/badger/data
     - --badger.consistency=false  
     - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
