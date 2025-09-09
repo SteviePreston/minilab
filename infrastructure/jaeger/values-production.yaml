@@ -27,12 +27,6 @@ allInOne:
     - --badger.consistency=false  
     - --badger.maintenance-interval=5m
   
-  extraEnv:
-    - name: COLLECTOR_OTLP_ENABLED
-      value: "true"
-    - name: BADGER_EPHEMERAL
-      value: "false"
-
 agent:
   enabled: false
 collector:
@@ -41,7 +35,6 @@ query:
   enabled: false
 ingester:
   enabled: false
-
 cassandra:
   enabled: false
 elasticsearch:
@@ -49,6 +42,15 @@ elasticsearch:
 
 service:
   type: ClusterIP
+
+collector:
+  enabled: true 
+  service:
+    otlp:
+      grpc:
+        port: 14250
+      http:
+        port: 14268
   
 serviceMonitor:
   enabled: true
