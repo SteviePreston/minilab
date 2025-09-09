@@ -21,28 +21,10 @@ allInOne:
     - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
   
-  volumeMounts:
-    - name: data
-      mountPath: /badger
-      
-  volumes:
-    - name: data
-      persistentVolumeClaim:
-        claimName: jaeger-badger
-
-extraObjects:
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      name: jaeger-badger
-      namespace: observability
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      storageClassName: longhorn-storageclass
-      resources:
-        requests:
-          storage: 10Gi
+persistence:
+  enabled: true
+  existingClaim: "jaeger-badger"
+  mountPath: /badger
 
 agent:
   enabled: false
