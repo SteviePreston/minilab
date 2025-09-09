@@ -1,6 +1,4 @@
-storage:
-  type: badger
-
+  
 allInOne:
   enabled: true
   image:
@@ -13,47 +11,36 @@ allInOne:
       cpu: 500m
       memory: 512Mi
   
-  persistence:
-    enabled: true
-    storageClass: longhorn-storageclass
-    size: 10Gi
-    accessModes:
-      - ReadWriteOnce
-    mountPath: /badger
-  
   args:
     - --badger.ephemeral=false
-    - --badger.directory-key=/badger/key
-    - --badger.directory-value=/badger/data
+    - --badger.directory-key=/badger-data/key
+    - --badger.directory-value=/badger-data/data
     - --badger.consistency=false  
     - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
+  
+  volumeMounts:
+    - name: data
+      mountPath: /badger
+      
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: jaeger-badger
 
-  securityContext:
-    runAsUser: 10001
-    runAsGroup: 10001
-    fsGroup: 10001
-
-  extraInitContainers:
-    - name: fix-permissions
-      image: busybox:1.36
-      command:
-        - sh
-        - -c
-        - |
-          echo "Fixing ownership for /badger"
-          mkdir -p /badger/key /badger/data
-          chown -R 10001:10001 /badger
-          ls -ld /badger /badger/key /badger/data
-      securityContext:
-        runAsUser: 0
-        runAsGroup: 0
-      volumeMounts:
-        - name: storage
-          mountPath: /badger
-
-  extraVolumeMounts: []
-  extraVolumes: []
+extraObjects:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: jaeger-badger
+      namespace: observability
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: longhorn-storageclass
+      resources:
+        requests:
+          storage: 10Gi
 
 agent:
   enabled: false
@@ -70,9 +57,8 @@ elasticsearch:
 
 service:
   type: ClusterIP
-
+  
 serviceMonitor:
   enabled: true
   additionalLabels:
     app.kubernetes.io/part-of: kube-prometheus-stack
-
