@@ -19,6 +19,7 @@ allInOne:
     size: 10Gi
     accessModes:
       - ReadWriteOnce
+    mountPath: /badger
   
   args:
     - --badger.ephemeral=false
@@ -27,7 +28,18 @@ allInOne:
     - --badger.consistency=false  
     - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
-  
+
+securityContext:
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
 agent:
   enabled: false
 collector:
