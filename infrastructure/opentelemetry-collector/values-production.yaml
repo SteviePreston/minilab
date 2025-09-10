@@ -31,15 +31,14 @@ config:
     batch:
       timeout: 1s
       send_batch_size: 1024
-    
     memory_limiter:
       limit_mib: 400
       spike_limit_mib: 100
       check_interval: 5s
 
   exporters:
-    jaeger:
-      endpoint: jaeger-production-collector:14250
+    otlp/jaeger:
+      endpoint: jaeger-production:14268
       tls:
         insecure: true
     
@@ -53,7 +52,7 @@ config:
       traces:
         receivers: [otlp, jaeger, zipkin]
         processors: [memory_limiter, batch]
-        exporters: [jaeger]
+        exporters: [otlp/jaeger]
       
       metrics:
         receivers: [otlp]
@@ -64,3 +63,4 @@ serviceMonitor:
   enabled: true
   additionalLabels:
     app.kubernetes.io/part-of: kube-prometheus-stack
+
