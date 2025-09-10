@@ -1,5 +1,13 @@
 storage:
-  type: memory  # Start with in-memory storage first
+  type: badger 
+
+persistence:
+  enabled: true
+  storageClassName: longhorn-storageclass
+  size: 10Gi
+  accessModes:
+    - ReadWriteOnce 
+
 
 allInOne:
   enabled: true
@@ -12,6 +20,8 @@ allInOne:
     limits:
       cpu: 200m
       memory: 256Mi
+  args:
+    - --badger.ephemeral=false
 
 agent:
   enabled: false
