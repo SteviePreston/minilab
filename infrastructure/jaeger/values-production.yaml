@@ -1,13 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storage-jaeger-production
+  namespace: observability
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-storageclass
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+
 storage:
   type: badger 
 
 persistence:
   enabled: true
-  storageClassName: longhorn-storageclass
-  size: 10Gi
-  accessModes:
-    - ReadWriteOnce 
-
+  existingClaim: storage-jaeger-production
+  mountPath: /badger
 
 allInOne:
   enabled: true
@@ -22,6 +34,16 @@ allInOne:
       memory: 256Mi
   args:
     - --badger.ephemeral=false
+    - --badger.directory-key=/badger/keys
+    - --badger.directory-value=/badger/values
+    - --badger.consistency=false
+    - --badger.maintenance-interval=5m
+    - --collector.otlp.enabled=true
+
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
 
 agent:
   enabled: false
@@ -43,55 +65,4 @@ serviceMonitor:
   enabled: true
   additionalLabels:
     app.kubernetes.io/part-of: kube-prometheus-stack
-
-    
-#
-# allInOne:
-#   enabled: true
-#   image:
-#     tag: "1.55.0"
-#   resources:
-#     requests:
-#       cpu: 200m
-#       memory: 256Mi
-#     limits:
-#       cpu: 500m
-#       memory: 512Mi
-#
-#   securityContext:
-#     runAsUser: 0
-#     runAsGroup: 0
-#
-#   args:
-#     - --badger.ephemeral=false
-#     - --badger.directory-key=/badger/key
-#     - --badger.directory-value=/badger/data
-#     - --badger.consistency=false  
-#     - --badger.maintenance-interval=5m
-#     - --collector.otlp.enabled=true
-#
-# persistence:
-#   enabled: true
-#   existingClaim: "jaeger-badger"
-#   mountPath: /badger
-#
-# agent:
-#   enabled: false
-# collector:
-#   enabled: false
-# query:
-#   enabled: false
-# ingester:
-#   enabled: false
-# cassandra:
-#   enabled: false
-# elasticsearch:
-#   enabled: false
-# service:
-#   type: ClusterIP
-#
-# serviceMonitor:
-#   enabled: true
-#   additionalLabels:
-#     app.kubernetes.io/part-of: kube-prometheus-stack
 
