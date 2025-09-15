@@ -21,6 +21,12 @@ securityContext:
 service:
   type: LoadBalancer
 
+grafana.ini:
+  unified_alerting:
+    enabled: true
+  alerting:
+    enabled: false
+
 # Admin credentials
 admin:
   existingSecret: grafana-admin-secret
@@ -37,6 +43,13 @@ datasources:
       url: http://prometheus-production-kube-prometheus.monitoring.svc.cluster.local:9090
       access: proxy
       isDefault: true
+      editable: true
+
+    - name: Alertmanager
+      type: alertmanager
+      url: http://alertmanager.monitoring.svc.cluster.local:9093
+      access: proxy
+      isDefault: false
       editable: true
 
 # Dashboard providers
@@ -68,3 +81,4 @@ dashboards:
       gnetId: 6417
       revision: 1
       datasource: Prometheus
+
