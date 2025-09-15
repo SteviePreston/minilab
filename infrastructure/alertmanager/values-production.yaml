@@ -40,7 +40,7 @@ config:
   
   receivers:
     - name: 'discord'
-      discord_config:
+      discord_configs:
         - webhook_url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
           send_resolved: true
 
