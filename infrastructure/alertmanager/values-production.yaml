@@ -41,7 +41,7 @@ config:
   receivers:
     - name: 'discord'
       webhook_configs:
-        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
+        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06/slack'
           send_resolved: true
           http_config:
             follow_redirects: true
