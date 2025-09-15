@@ -1,18 +1,3 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: storage-jaeger-production
-  namespace: observability
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn-storageclass
-  resources:
-    requests:
-      storage: 10Gi
-
----
-
 storage:
   type: badger 
 
