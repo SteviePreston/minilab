@@ -49,7 +49,7 @@ datasources:
       type: alertmanager
       url: http://alertmanager-production.monitoring.svc.cluster.local:9093 
       access: proxy
-      isDefault: true
+      isDefault: false
       editable: true
       jsonData:
         handleGrafanaManagedAlerts: true
