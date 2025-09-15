@@ -41,10 +41,9 @@ config:
   receivers:
     - name: 'discord'
       discord_config:
-        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
+        - webhook_url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
           send_resolved: true
-          username: 'Alertmanager'
-          title: '@here Alert: {{ .GroupLabels.alertname }}'
+          title: 'Alert: {{ .GroupLabels.alertname }}'
           message: |
             {{ range .Alerts }}
             🚨 **{{ .Annotations.summary }}**
