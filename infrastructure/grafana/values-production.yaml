@@ -47,7 +47,7 @@ datasources:
 
     - name: Alertmanager
       type: alertmanager
-      url: http://alertmanager.monitoring.svc.cluster.local:9093
+      url: http://alertmanager-production.monitoring.svc.cluster.local:9093 
       access: proxy
       isDefault: false
       editable: true
