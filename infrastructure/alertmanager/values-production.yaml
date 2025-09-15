@@ -40,13 +40,12 @@ config:
   
   receivers:
     - name: 'discord'
-      webhook_configs:
-        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06/slack'
+      discord_config:
+        - url: 'https://discord.com/api/webhooks/1412137025699578078/091QFCMixxyPWlgWbvFRLSgZzk5qg5KuGZn3ntjwQCvPgHv2yLnUm8AH0dFa9KUE2v06'
           send_resolved: true
-          http_config:
-            follow_redirects: true
+          username: 'Alertmanager'
           title: '@here Alert: {{ .GroupLabels.alertname }}'
-          text: |
+          message: |
             {{ range .Alerts }}
             🚨 **{{ .Annotations.summary }}**
             {{ .Annotations.description }}
@@ -54,3 +53,4 @@ config:
             Severity: {{ .Labels.severity }}
             Instance: {{ .Labels.instance }}
             {{ end }}
+
