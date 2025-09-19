@@ -23,8 +23,6 @@ persistence:
 
 allInOne:
   enabled: true
-  image:
-    tag: "1.55.0"
   resources:
     requests:
       cpu: 100m
@@ -55,9 +53,14 @@ ingester:
   enabled: false
 cassandra:
   enabled: false
+cassandra-operator:
+  enabled: false
+spark:
+  enabled: false
 elasticsearch:
   enabled: false
-
+hotrod:
+  enabled: false
 service:
   type: ClusterIP
   
