@@ -12,17 +12,13 @@ spec:
       storage: 10Gi
 
 ---
-
 storage:
-  type: badger 
-
-persistence:
-  enabled: true
-  existingClaim: storage-jaeger-production
-  mountPath: /badger
+  type: badger
 
 allInOne:
   enabled: true
+  image:
+    tag: "1.55.0"
   resources:
     requests:
       cpu: 100m
@@ -37,7 +33,6 @@ allInOne:
     - --badger.consistency=false
     - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
-
   securityContext:
     runAsUser: 10001
     runAsGroup: 10001
@@ -53,14 +48,20 @@ ingester:
   enabled: false
 cassandra:
   enabled: false
-cassandra-operator:
-  enabled: false
-spark:
-  enabled: false
 elasticsearch:
   enabled: false
 hotrod:
   enabled: false
+spark:
+  enabled: false
+esIndexCleaner:
+  enabled: false
+
+persistence:
+  enabled: true
+  existingClaim: storage-jaeger-production
+  mountPath: /badger
+
 service:
   type: ClusterIP
   
