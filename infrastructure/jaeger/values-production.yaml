@@ -1,19 +1,13 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: storage-jaeger-production
-  namespace: observability
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn-storageclass
-  resources:
-    requests:
-      storage: 10Gi
-
----
 storage:
-  type: badger
+  type: elasticsearch
+
+elasticsearch:
+  enabled: true
+  replicas: 2 
+  persistence:
+    enabled: true
+    size: 25Gi
+    storageClass: longhorn-storageclass
 
 allInOne:
   enabled: true
@@ -21,50 +15,32 @@ allInOne:
     tag: "1.55.0"
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
       cpu: 200m
-      memory: 256Mi
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
   args:
-    - --badger.ephemeral=false
-    - --badger.directory-key=/badger/keys
-    - --badger.directory-value=/badger/values
-    - --badger.consistency=false
-    - --badger.maintenance-interval=5m
+    - --es.server-urls=http://elasticsearch:9200
+    - --es.num-shards=3
+    - --es.num-replicas=1
     - --collector.otlp.enabled=true
-  securityContext:
-    runAsUser: 10001
-    runAsGroup: 10001
-    fsGroup: 10001
+    - --query.max-clock-skew-adjustment=0s
 
-agent:
-  enabled: false
+esIndexCleaner:
+  enabled: true
+  schedule: "55 23 * * *"
+  numberOfDays: 14  
+
 collector:
   enabled: false
 query:
   enabled: false
-ingester:
+agent:
   enabled: false
 cassandra:
   enabled: false
-elasticsearch:
-  enabled: false
-hotrod:
-  enabled: false
-spark:
-  enabled: false
-esIndexCleaner:
-  enabled: false
 
-persistence:
-  enabled: true
-  existingClaim: storage-jaeger-production
-  mountPath: /badger
-
-service:
-  type: ClusterIP
-  
 serviceMonitor:
   enabled: true
   additionalLabels:
