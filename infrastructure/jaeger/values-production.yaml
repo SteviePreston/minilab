@@ -1,5 +1,5 @@
 storage:
-  type: badger 
+  type: badger
 
 persistence:
   enabled: true
@@ -10,44 +10,9 @@ allInOne:
   enabled: true
   image:
     tag: "1.55.0"
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
   args:
     - --badger.ephemeral=false
     - --badger.directory-key=/badger/keys
     - --badger.directory-value=/badger/values
-    - --badger.consistency=false
-    - --badger.maintenance-interval=5m
     - --collector.otlp.enabled=true
-
-  securityContext:
-    runAsUser: 10001
-    runAsGroup: 10001
-    fsGroup: 10001
-
-agent:
-  enabled: false
-collector:
-  enabled: false
-query:
-  enabled: false
-ingester:
-  enabled: false
-cassandra:
-  enabled: false
-elasticsearch:
-  enabled: false
-
-service:
-  type: ClusterIP
-
-serviceMonitor:
-  enabled: true
-  additionalLabels:
-    app.kubernetes.io/part-of: kube-prometheus-stack
 
