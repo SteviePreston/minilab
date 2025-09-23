@@ -28,31 +28,18 @@ allInOne:
       cpu: 500m
       memory: 1Gi
   args:
-    # Wait for Elasticsearch to be ready before starting
     - --es.server-urls=http://jaeger-production-elasticsearch:9200
     - --es.num-shards=1
     - --es.num-replicas=0
-    # Remove the localhost OTLP config - all-in-one handles this internally
     - --collector.otlp.enabled=true
     - --collector.otlp.grpc.host-port=0.0.0.0:4317
     - --collector.otlp.http.host-port=0.0.0.0:4318
-  # Add dependency to wait for Elasticsearch
-  extraEnv:
-    - name: SPAN_STORAGE_TYPE
-      value: elasticsearch
-  # Add init container to wait for ES
-  extraInitContainers:
-    - name: wait-for-elasticsearch
-      image: busybox:1.35
-      command: ['sh', '-c', 'until nc -z jaeger-production-elasticsearch 9200; do echo waiting for elasticsearch; sleep 2; done']
 
-# Index lifecycle management
 esIndexCleaner:
   enabled: true
   schedule: "55 23 * * *"
   numberOfDays: 14
 
-# Everything else disabled
 collector:
   enabled: false
 query:
