@@ -4,11 +4,17 @@ all:
       children:
         master_nodes:
           hosts:
-            k3s-m01:
-              ansible_host: 192.168.50.175
+            k3s_m01:
+              ansible_host: "{{ lookup('env', 'M01_IP') }}"
+            k3s_m02:
+              ansible_host: "{{ lookup('env', 'M02_IP') }}"
+            k3s_m03:
+              ansible_host: "{{ lookup('env', 'M03_IP') }}"
         worker_nodes:
           hosts:
-            k3s-w01:
-              ansible_host: 192.168.50.125
-            k3s-w02:
-              ansible_host: 192.168.50.162
+            k3s_w01:
+              ansible_host: "{{ lookup('env', 'W01_IP') }}"
+            k3s_w02:
+              ansible_host: "{{ lookup('env', 'W02_IP') }}"
+            k3s_w03:
+              ansible_host: "{{ lookup('env', 'W03_IP') }}"

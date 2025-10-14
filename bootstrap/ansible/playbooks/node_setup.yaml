@@ -41,29 +41,11 @@
           - software-properties-common
           - apt-transport-https
           - lsb-release
+          - iptables
+          - conntrack
+          - socat
           - ca-certificates
         state: present
-
-    - name: Install neovim
-      apt:
-        name: neovim
-        state: present
-
-    - name: Create neovim config directory
-      file:
-        path: /home/admin/.config/nvim
-        state: directory
-        owner: admin
-        group: admin
-        mode: '0755'
-
-    - name: Create neovim config
-      template:
-        src: templates/node/init.lua.j2
-        dest: /home/admin/.config/nvim/init.lua
-        owner: admin
-        group: admin
-        mode: '0644'
 
     - name: Install docker
       apt:
@@ -111,25 +93,104 @@
         mode: '0755'
         remote_src: yes
 
-    - name: Set up aliases
-      lineinfile:
-        path: /home/admin/.bashrc
-        line: "{{ item }}"
-        create: yes
-      become_user: admin
-      loop:
-        - "alias la='ls -Fal'"
-        - "alias ls='ls -F'"
-        - "alias nv='nvim'"
-        - 'export EDITOR=nvim'
+    - name: Find actual cmdline.txt location
+      shell: find /boot/firmware -name "cmdline.txt" 2>/dev/null | head -1
+      register: cmdline_location
+      changed_when: false
+      failed_when: false
 
-    - name: Configure cgroup memory and cpu for RPi
-      lineinfile:
-        path: /boot/firmware/cmdline.txt
-        regexp: '^(.*)$'
-        line: '\1 cgroup_memory=1 cgroup_enable=memory'
-        backrefs: yes
-      register: cmdline_changed
+    - name: Set cmdline path if found
+      set_fact:
+        cmdline_path: "{{ cmdline_location.stdout }}"
+      when: cmdline_location.stdout != ""
+
+    - name: Show cmdline.txt location
+      debug:
+        msg: "Found cmdline.txt at: {{ cmdline_path }}"
+      when: cmdline_location.stdout != ""
+
+    - name: Warn if cmdline.txt not found
+      debug:
+        msg: "WARNING: cmdline.txt not found in /boot/firmware - cgroup configuration will be skipped!"
+      when: cmdline_location.stdout == ""
+
+    - name: Backup cmdline.txt before modification
+      copy:
+        src: "{{ cmdline_path }}"
+        dest: "{{ cmdline_path }}.backup-{{ ansible_date_time.epoch }}"
+        remote_src: yes
+      when: cmdline_location.stdout != ""
+
+    - name: Read current cmdline content
+      slurp:
+        src: "{{ cmdline_path }}"
+      register: cmdline_content
+      when: cmdline_location.stdout != ""
+
+    - name: Check current cgroup settings
+      set_fact:
+        has_cgroup_disable: "{{ 'cgroup_disable=memory' in (cmdline_content.content | b64decode) }}"
+        has_cgroup_enable: "{{ 'cgroup_enable=memory' in (cmdline_content.content | b64decode) }}"
+      when: cmdline_location.stdout != ""
+
+    - name: Show current cgroup status
+      debug:
+        msg:
+          - "Has cgroup_disable=memory: {{ has_cgroup_disable | default('N/A') }}"
+          - "Has cgroup_enable=memory: {{ has_cgroup_enable | default('N/A') }}"
+      when: cmdline_location.stdout != ""
+
+    - name: Fix cmdline.txt for k3s - remove cgroup_disable and add cgroup_enable
+      shell: |
+        # Read current content, remove bad params, clean spaces
+        cat {{ cmdline_path }} | \
+          sed 's/cgroup_disable=memory//g' | \
+          sed 's/\s\+/ /g' | \
+          sed 's/^\s*//' | \
+          tr -d '\n' > /tmp/cmdline.tmp
+        
+        # Add correct cgroup parameters if not already present
+        if ! grep -q "cgroup_enable=memory" /tmp/cmdline.tmp; then
+          echo -n " cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" >> /tmp/cmdline.tmp
+        fi
+        
+        # Write back (single line, no trailing newline)
+        cat /tmp/cmdline.tmp > {{ cmdline_path }}
+        rm /tmp/cmdline.tmp
+      register: cmdline_fixed
+      when: 
+        - cmdline_location.stdout != ""
+        - (has_cgroup_disable | default(false)) or not (has_cgroup_enable | default(false))
+
+    - name: Verify cmdline.txt was updated
+      command: cat {{ cmdline_path }}
+      register: updated_cmdline
+      changed_when: false
+      when: cmdline_fixed.changed | default(false)
+
+    - name: Show updated cmdline
+      debug:
+        msg: "Updated: {{ updated_cmdline.stdout }}"
+      when: cmdline_fixed.changed | default(false)
+
+    - name: Verify cgroup_disable was removed
+      shell: grep -c "cgroup_disable" {{ cmdline_path }} || echo "0"
+      register: disable_count
+      changed_when: false
+      when: cmdline_location.stdout != ""
+
+    - name: Verify cgroup_enable was added
+      shell: grep -c "cgroup_enable=memory" {{ cmdline_path }} || echo "0"
+      register: enable_count
+      changed_when: false
+      when: cmdline_location.stdout != ""
+
+    - name: Show verification
+      debug:
+        msg:
+          - "cgroup_disable count: {{ disable_count.stdout | default('N/A') }} (should be 0)"
+          - "cgroup_enable count: {{ enable_count.stdout | default('N/A') }} (should be > 0)"
+      when: cmdline_location.stdout != ""
 
     - name: Enable container features for RPi
       lineinfile:
@@ -166,32 +227,102 @@
         - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
         - { key: 'net.ipv4.ip_forward', value: '1' }
 
-    - name: Check if reboot required
+    - name: Check if system reboot required
       stat:
         path: /var/run/reboot-required
       register: reboot_required
 
-    - name: Check if kernel config changed
+    - name: Determine if reboot is needed
       set_fact:
-        needs_reboot: "{{ reboot_required.stat.exists or cmdline_changed.changed or config_changed.changed }}"
+        needs_reboot: "{{ reboot_required.stat.exists or (cmdline_fixed.changed | default(false)) or (config_changed.changed | default(false)) }}"
 
-    - name: Notify if reboot is needed
+    - name: Show reboot status
       debug:
-        msg: "Reboot required on {{ inventory_hostname }}"
-      when: needs_reboot | bool
+        msg: "{{ 'Reboot REQUIRED on ' + inventory_hostname if (needs_reboot | bool) else '✅ No reboot needed on ' + inventory_hostname }}"
 
     - name: Reboot system if required
       reboot:
-        msg: "Rebooting due to system updates or kernel config changes"
+        msg: "Rebooting to apply cgroup and kernel configuration changes"
         connect_timeout: 5
         reboot_timeout: 300
-        pre_reboot_delay: 0
+        pre_reboot_delay: 5
         post_reboot_delay: 30
       when: needs_reboot | bool
 
+    - name: Wait for system to come back online
+      wait_for_connection:
+        delay: 30
+        timeout: 300
+      when: needs_reboot | bool
+
+    - name: Verify boot parameters after reboot
+      command: cat /proc/cmdline
+      register: boot_params
+      changed_when: false
+      when: needs_reboot | bool
+
+    - name: Show boot parameters
+      debug:
+        msg: "Boot params: {{ boot_params.stdout }}"
+      when: needs_reboot | bool
+
+    - name: Check for cgroup_disable in boot params (should be absent)
+      shell: cat /proc/cmdline | grep "cgroup_disable=memory" || echo "NOT_FOUND"
+      register: disable_check
+      changed_when: false
+      when: needs_reboot | bool
+
+    - name: Check for cgroup_enable in boot params (should be present)
+      shell: cat /proc/cmdline | grep "cgroup_enable=memory" || echo "NOT_FOUND"
+      register: enable_check
+      changed_when: false
+      when: needs_reboot | bool
+
+    - name: Show cgroup verification
+      debug:
+        msg:
+          - "cgroup_disable in boot: {{ disable_check.stdout | default('N/A') }}"
+          - "cgroup_enable in boot: {{ enable_check.stdout | default('N/A') }}"
+      when: needs_reboot | bool
+
+    - name: Check if using cgroup v2
+      stat:
+        path: /sys/fs/cgroup/cgroup.controllers
+      register: cgroup_v2_check
+
+    - name: Get cgroup v2 controllers
+      command: cat /sys/fs/cgroup/cgroup.controllers
+      register: cgroup_controllers
+      changed_when: false
+      when: cgroup_v2_check.stat.exists
+
+    - name: Check legacy cgroup v1 (fallback)
+      shell: cat /proc/cgroups | grep memory
+      register: cgroup_v1_memory
+      changed_when: false
+      failed_when: false
+      when: not cgroup_v2_check.stat.exists
+
+    - name: Determine memory cgroup status
+      set_fact:
+        memory_cgroup_enabled: "{{ (cgroup_v2_check.stat.exists and 'memory' in cgroup_controllers.stdout) or (not cgroup_v2_check.stat.exists and 'memory' in (cgroup_v1_memory.stdout | default(''))) }}"
+        cgroup_version: "{{ 'v2' if cgroup_v2_check.stat.exists else 'v1' }}"
+
+    - name: Show cgroup configuration
+      debug:
+        msg:
+          - "Cgroup version: {{ cgroup_version }}"
+          - "{{ 'Controllers: ' + cgroup_controllers.stdout if cgroup_v2_check.stat.exists else 'Using cgroup v1' }}"
+          - "Memory cgroup: {{ 'ENABLED' if memory_cgroup_enabled else 'DISABLED' }}"
+
+    - name: Fail if memory cgroup not available
+      fail:
+        msg: "Memory cgroup is not available. k3s will not start properly."
+      when: not memory_cgroup_enabled
+
     - name: Node preparation complete
       debug:
-        msg: "{{ inventory_hostname }} prepared for k3s installation"
+        msg: "{{ inventory_hostname }} is ready for k3s installation (cgroup {{ cgroup_version }})"
 
   handlers:
     - name: Apply netplan

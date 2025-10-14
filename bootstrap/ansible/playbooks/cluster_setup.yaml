@@ -1,31 +1,24 @@
 ---
-- name: Install k3s on master nodes
-  hosts: master_nodes
+- name: Install k3s on first master node
+  hosts: master_nodes[0]
   become: yes
   vars:
     k3s_version: v1.33.3+k3s1
     k3s_data_dir: /var/lib/rancher/k3s
     k3s_config_dir: /etc/rancher/k3s
   tasks:
-    - name: Starting k3s master node setup
+    - name: Starting first k3s master setup
       debug:
-        msg: "Setting up k3s master on {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})"
+        msg: "Setting up FIRST master on {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})"
 
-    - name: Create k3s config directory
+    - name: Create k3s directories
       file:
-        path: "{{ k3s_config_dir }}"
+        path: "{{ item }}"
         state: directory
         mode: '0755'
-
-    - name: Create k3s data directory
-      file:
-        path: "{{ k3s_data_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Downloading k3s binary
-      debug:
-        msg: "Downloading k3s {{ k3s_version }} for ARM64"
+      loop:
+        - "{{ k3s_config_dir }}"
+        - "{{ k3s_data_dir }}"
 
     - name: Download k3s binary
       get_url:
@@ -37,23 +30,19 @@
       retries: 3
       delay: 10
 
+    - name: Create k3s environment file for first master
+      template:
+        src: templates/cluster/k3s-server.env.j2
+        dest: "{{ k3s_config_dir }}/k3s.env"
+        mode: '0644'
+      vars:
+        is_first_master: true
+
     - name: Create k3s service file
       template:
         src: templates/cluster/k3s-server.service.j2
         dest: /etc/systemd/system/k3s.service
         mode: '0644'
-      notify: Restart k3s
-
-    - name: Create k3s environment file
-      template:
-        src: templates/cluster/k3s-server.env.j2
-        dest: "{{ k3s_config_dir }}/k3s.env"
-        mode: '0644'
-      notify: Restart k3s
-
-    - name: Starting k3s service
-      debug:
-        msg: "Starting k3s server service on {{ inventory_hostname }}"
 
     - name: Enable and start k3s service
       systemd:
@@ -66,99 +55,93 @@
       wait_for:
         port: 6443
         host: "{{ ansible_default_ipv4.address }}"
-        delay: 15
+        delay: 10
         timeout: 300
-      retries: 3
-      delay: 10
 
-    - name: k3s API server is ready
-      debug:
-        msg: "k3s API server is running on {{ ansible_default_ipv4.address }}:6443"
+    - name: Wait for node-token file
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        state: present
+        delay: 5
+        timeout: 180
+
+    - name: Verify etcd is healthy
+      command: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: first_node_check
+      retries: 5
+      delay: 10
+      until: first_node_check.rc == 0
 
     - name: Get k3s node token
       slurp:
         src: /var/lib/rancher/k3s/server/node-token
       register: k3s_token
-      retries: 3
-      delay: 5
 
     - name: Set k3s token fact
       set_fact:
         k3s_node_token: "{{ k3s_token.content | b64decode | trim }}"
 
-    - name: Wait for cluster to be fully ready
-      command: kubectl wait --for=condition=Ready nodes {{ inventory_hostname }} --timeout=300s
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      retries: 3
-      delay: 15
+    - name: Setup kubeconfig for admin
+      block:
+        - name: Create .kube directory
+          file:
+            path: /home/admin/.kube
+            state: directory
+            owner: admin
+            group: admin
+            mode: '0755'
 
-    - name: Master node setup complete
+        - name: Copy kubeconfig file
+          copy:
+            src: /etc/rancher/k3s/k3s.yaml
+            dest: /home/admin/.kube/config
+            owner: admin
+            group: admin
+            mode: '0600'
+            remote_src: yes
+
+        - name: Update kubeconfig server address
+          replace:
+            path: /home/admin/.kube/config
+            regexp: 'https://127\.0\.0\.1:6443'
+            replace: "https://{{ ansible_default_ipv4.address }}:6443"
+
+    - name: First master setup complete
       debug:
-        msg: 
-          - "k3s master setup complete on {{ inventory_hostname }}"
-          - "Join token generated for worker nodes"
-          - "API server available at: https://{{ ansible_default_ipv4.address }}:6443"
+        msg:
+          - "First master {{ inventory_hostname }} initialized"
+          - "API: https://{{ ansible_default_ipv4.address }}:6443"
 
-    - name: Create kubeconfig directory for admin user
-      file:
-        path: /home/admin/.kube
-        state: directory
-        owner: admin
-        group: admin
-        mode: '0755'
+# -------------------------------------------------------------------
 
-    - name: Copy kubeconfig for admin user
-      copy:
-        src: /etc/rancher/k3s/k3s.yaml
-        dest: /home/admin/.kube/config
-        owner: admin
-        group: admin
-        mode: '0600'
-        remote_src: yes
-
-    - name: Update kubeconfig server address for admin user
-      replace:
-        path: /home/admin/.kube/config
-        regexp: 'https://127\.0\.0\.1:6443'
-        replace: "https://{{ ansible_default_ipv4.address }}:6443"
-
-    - name: kubectl access configured
-      debug:
-        msg: "kubectl configured for admin user on {{ inventory_hostname }}"
-
-  handlers:
-    - name: Restart k3s
-      systemd:
-        name: k3s
-        state: restarted
-        daemon_reload: yes
-
-- name: Install k3s on worker nodes
-  hosts: worker_nodes
+- name: Install k3s on additional master nodes
+  hosts: master_nodes[1:]
   become: yes
+  serial: 1  # Join one at a time for stability
   vars:
     k3s_version: v1.33.3+k3s1
+    k3s_data_dir: /var/lib/rancher/k3s
+    k3s_config_dir: /etc/rancher/k3s
   tasks:
-    - name: Starting worker node setup
+    - name: Starting additional master setup
       debug:
-        msg: "Setting up k3s worker on {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})"
+        msg: "Setting up master {{ inventory_hostname }} to join cluster"
 
-    - name: Get master node IP
+    - name: Get first master details
       set_fact:
         k3s_master_ip: "{{ hostvars[groups['master_nodes'][0]]['ansible_default_ipv4']['address'] }}"
-
-    - name: Get k3s token from master
-      set_fact:
         k3s_node_token: "{{ hostvars[groups['master_nodes'][0]]['k3s_node_token'] }}"
 
-    - name: Worker will join master
-      debug:
-        msg: "Worker {{ inventory_hostname }} will join master at {{ k3s_master_ip }}:6443"
-
-    - name: Downloading k3s binary for worker
-      debug:
-        msg: "Downloading k3s {{ k3s_version }} for ARM64"
+    - name: Create k3s directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ k3s_config_dir }}"
+        - "{{ k3s_data_dir }}"
 
     - name: Download k3s binary
       get_url:
@@ -170,72 +153,147 @@
       retries: 3
       delay: 10
 
+    - name: Create k3s environment file for additional master
+      template:
+        src: templates/cluster/k3s-server.env.j2
+        dest: "{{ k3s_config_dir }}/k3s.env"
+        mode: '0644'
+      vars:
+        is_first_master: false
+
+    - name: Create k3s service file
+      template:
+        src: templates/cluster/k3s-server.service.j2
+        dest: /etc/systemd/system/k3s.service
+        mode: '0644'
+
+    - name: Enable and start k3s service
+      systemd:
+        name: k3s
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for k3s API server
+      wait_for:
+        port: 6443
+        host: "{{ ansible_default_ipv4.address }}"
+        delay: 10
+        timeout: 300
+
+    - name: Wait for cluster sync
+      pause:
+        seconds: 20
+
+    - name: Verify node joined cluster
+      command: kubectl get nodes
+      delegate_to: "{{ groups['master_nodes'][0] }}"
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: nodes_check
+      retries: 5
+      delay: 10
+      until: nodes_check.rc == 0
+
+    - name: Setup kubeconfig for admin
+      block:
+        - name: Create .kube directory
+          file:
+            path: /home/admin/.kube
+            state: directory
+            owner: admin
+            group: admin
+            mode: '0755'
+
+        - name: Copy kubeconfig file
+          copy:
+            src: /etc/rancher/k3s/k3s.yaml
+            dest: /home/admin/.kube/config
+            owner: admin
+            group: admin
+            mode: '0600'
+            remote_src: yes
+
+        - name: Update kubeconfig server address
+          replace:
+            path: /home/admin/.kube/config
+            regexp: 'https://127\.0\.0\.1:6443'
+            replace: "https://{{ ansible_default_ipv4.address }}:6443"
+
+    - name: Additional master setup complete
+      debug:
+        msg: "Master {{ inventory_hostname }} joined cluster"
+
+# -------------------------------------------------------------------
+
+- name: Install k3s on worker nodes
+  hosts: worker_nodes
+  become: yes
+  vars:
+    k3s_version: v1.33.3+k3s1
+  tasks:
+    - name: Starting worker node setup
+      debug:
+        msg: "Setting up worker {{ inventory_hostname }}"
+
+    - name: Get master IP and token
+      set_fact:
+        k3s_master_ip: "{{ hostvars[groups['master_nodes'][0]]['ansible_default_ipv4']['address'] }}"
+        k3s_node_token: "{{ hostvars[groups['master_nodes'][0]]['k3s_node_token'] }}"
+
+    - name: Download k3s binary
+      get_url:
+        url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s-arm64"
+        dest: /usr/local/bin/k3s
+        mode: '0755'
+        owner: root
+        group: root
+
     - name: Create k3s config directory
       file:
         path: /etc/rancher/k3s
         state: directory
         mode: '0755'
 
-    - name: Create k3s service file for agent
-      template:
-        src: templates/cluster/k3s-agent.service.j2
-        dest: /etc/systemd/system/k3s-agent.service
-        mode: '0644'
-      notify: Restart k3s agent
-
-    - name: Create k3s environment file for agent
+    - name: Create k3s environment file for worker
       template:
         src: templates/cluster/k3s-agent.env.j2
         dest: /etc/rancher/k3s/k3s.env
         mode: '0644'
-      notify: Restart k3s agent
 
-    - name: Starting k3s agent service
-      debug:
-        msg: "Starting k3s agent service on {{ inventory_hostname }}"
+    - name: Create k3s service file for worker
+      template:
+        src: templates/cluster/k3s-agent.service.j2
+        dest: /etc/systemd/system/k3s-agent.service
+        mode: '0644'
 
-    - name: Enable and start k3s agent service
+    - name: Enable and start k3s-agent
       systemd:
         name: k3s-agent
         enabled: yes
         state: started
         daemon_reload: yes
 
-    - name: Wait for node to join cluster
+    - name: Wait for worker to stabilize
       pause:
-        seconds: 30
+        seconds: 20
 
     - name: Worker node setup complete
       debug:
-        msg: "Worker {{ inventory_hostname }} joined the cluster"
+        msg: "Worker {{ inventory_hostname }} joined cluster"
 
-  handlers:
-    - name: Restart k3s agent
-      systemd:
-        name: k3s-agent
-        state: restarted
-        daemon_reload: yes
+# -------------------------------------------------------------------
 
 - name: Verify k3s cluster
   hosts: master_nodes[0]
   become: yes
   tasks:
-    - name: Starting cluster verification
-      debug:
-        msg: "Verifying k3s cluster status from {{ inventory_hostname }}"
-
     - name: Wait for all nodes to be Ready
       command: kubectl wait --for=condition=Ready nodes --all --timeout=300s
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       retries: 3
-      delay: 15
-      register: nodes_ready
-
-    - name: All nodes are ready
-      debug:
-        msg: "All nodes in the cluster are Ready"
-      when: nodes_ready.rc == 0
+      delay: 10
 
     - name: Get cluster nodes
       command: kubectl get nodes -o wide
@@ -243,53 +301,17 @@
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
-    - name: Display cluster status
+    - name: Show cluster status
       debug:
-        msg: 
-          - "=== k3s Cluster Status ==="
-          - "{{ cluster_nodes.stdout_lines }}"
+        msg: "{{ cluster_nodes.stdout_lines }}"
 
-    - name: Get cluster info
-      command: kubectl cluster-info
-      register: cluster_info
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-    - name: Display cluster info
-      debug:
-        msg:
-          - "=== k3s Cluster Info ==="
-          - "{{ cluster_info.stdout_lines }}"
-
-    - name: Get system pods status
-      command: kubectl get pods -n kube-system
+    - name: Get system pods
+      command: kubectl get pods -A
       register: system_pods
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
-    - name: Display system pods
+    - name: Show system pods
       debug:
-        msg:
-          - "=== System Pods Status ==="
-          - "{{ system_pods.stdout_lines }}"
+        msg: "{{ system_pods.stdout_lines }}"
 
-    - name: Verify disabled services
-      command: kubectl get svc -n kube-system
-      register: system_services
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-    - name: Check that Traefik and ServiceLB are disabled
-      debug:
-        msg:
-          - "=== System Services (should NOT show traefik or svclb) ==="
-          - "{{ system_services.stdout_lines }}"
-
-    - name: k3s cluster setup complete
-      debug:
-        msg:
-          - "k3s cluster setup completed successfully!"
-          - "Master: {{ ansible_default_ipv4.address }}:6443"
-          - "Workers: {{ groups['worker_nodes'] | length }} nodes joined"
-          - "Traefik and ServiceLB are disabled for GitOps management"
-          - "kubeconfig available at: /home/admin/.kube/config"
