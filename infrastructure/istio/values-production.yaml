@@ -1,0 +1,46 @@
+global:
+  hub: docker.io/istio
+  tag: 1.23.2
+  variant: distroless
+  proxy:
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+pilot:
+  autoscaleEnabled: false
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+meshConfig:
+  accessLogFile: /dev/stdout
+  accessLogEncoding: JSON
+  enableTracing: false
+  enablePrometheusMerge: true
+
+gateways:
+  istio-ingressgateway:
+    name: istio-ingressgateway
+    type: LoadBalancer
+    autoscaleEnabled: false
+    runAsRoot: false
+    serviceAnnotations:
+      metallb.universe.tf/address-pool: default 
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
