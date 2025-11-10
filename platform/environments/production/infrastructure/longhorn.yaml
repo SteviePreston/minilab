@@ -18,7 +18,7 @@ spec:
   sources:
     - repoURL: https://charts.longhorn.io
       chart: longhorn
-      targetRevision: 1.7.2  
+      targetRevision: 1.9.1
       helm:
         valueFiles:
           - $values/infrastructure/longhorn/values-production.yaml
