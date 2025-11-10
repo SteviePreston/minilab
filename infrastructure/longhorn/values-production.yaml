@@ -1,17 +1,17 @@
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: 1  # Reduced for RPi setup
-  defaultDataLocality: disabled  # Better for small clusters
+  defaultClassReplicaCount: 1 
+  defaultDataLocality: disabled  
 
-# Default settings optimized for RPi
 defaultSettings:
   createDefaultDiskLabeledNodes: true
   defaultDataPath: "/var/lib/longhorn/"
+  defaultReplicaCount: 1
+  guaranteedInstanceManagerCPU: 4
 
 preUpgradeChecker:
   jobEnabled: false
 
-# Resources optimized for RPi
 longhornManager:
   resources:
     requests:
@@ -20,6 +20,10 @@ longhornManager:
     limits:
       cpu: 300m
       memory: 256Mi
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
 
 longhornDriver:
   resources:
@@ -38,4 +42,7 @@ longhornUI:
     limits:
       cpu: 100m
       memory: 128Mi
+
+ingress:
+  enabled: false 
 
