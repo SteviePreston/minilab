@@ -1,5 +1,9 @@
 # Keep It Super Simple To Do
 
+# ########################################################
+# NOTICE :: THIS PROJECT IS ON HOLD TILL NEW ROUTER 
+# ########################################################
+
 - Setup Argocd and git 
 - Setup the Istio Service Mesh
 
