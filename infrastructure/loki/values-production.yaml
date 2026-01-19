@@ -11,7 +11,7 @@ singleBinary:
       memory: 1Gi
   persistence:
     enabled: true
-    storageClass: longhorn-storageclass
+    storageClass: longhorn-sc
     size: 20Gi
   extraArgs:
     - -config.expand-env=true
