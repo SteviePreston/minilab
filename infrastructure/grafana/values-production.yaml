@@ -8,7 +8,7 @@ resources:
 
 persistence:
   enabled: true
-  storageClassName: "longhorn-storageclass"
+  storageClassName: "longhorn-sc"
   size: 10Gi
 
 # Security
