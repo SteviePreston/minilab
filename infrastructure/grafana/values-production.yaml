@@ -40,7 +40,7 @@ datasources:
     datasources:
     - name: Prometheus
       type: prometheus
-      url: http://prometheus-production-kube-prometheus.monitoring.svc.cluster.local:9090
+      url: http://prometheus-production.monitoring.svc.cluster.local:80
       access: proxy
       isDefault: true
       editable: true
